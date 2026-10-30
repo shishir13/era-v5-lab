@@ -54,9 +54,11 @@ Counts are from all 500 rows of `labels.csv`. A disease gets a section if it app
    FOOTL = re.compile(r'^\W*(This website follows the DNPA|Get all .*News|Read the latest|Stay updated|यह भी पढ़|इसे भी पढ़|ये भी (पढ़|देख)|Posted On|Quick links|Cookies Policy|संबंधित खबर|Also Read|Join our|You agree to our)', re.I)
    def strip_c1_tail(t):
        lines = t.split('\n')
+       removed = False
        while lines and (not lines[-1].strip() or FOOTL.match(lines[-1].strip())):
+           removed = removed or bool(lines[-1].strip())
            lines.pop()
-       return '\n'.join(lines)
+       return '\n'.join(lines) if removed else t
    ```
 3. **Action:** Fix the text (delete the trailing lines). Drop the document if nothing remains.
 4. **Harm test:** Gold set empty, not testable. Stand-in result: it changes 0 and drops 0 of the 270 proxy documents. It catches only 31 of the 92 documents I labelled C1. The rest are footers with no fixed phrase (`हिमाचल दस्तक`, `(जागरण फोटो)`), or lines at the start or middle of the document (`Quick links:`, `Posted On:`, `इसे भी पढ़ें` inside the text).
