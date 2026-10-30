@@ -4,17 +4,17 @@ Counts are from all 500 rows of `labels.csv`. A disease gets a section if it app
 
 **Gate 1 status: gold set empty, not testable.** The Hindi gold set did not exist when I wrote this, and no gold file is in my repository. The harm test will be run on it when it exists, with the small-set rule: a medicine passes if it changes or drops at most 1 document or 1% of the gold set, whichever is larger.
 
-**Stand-in numbers (not a Gate 1 test).** Until then, every number below comes from a proxy: the 282 documents of this pack that I labelled `clean` (no disease except D3). Those 282 are one reader's labels, not two, so the test is weaker than the real one. "Detection" is how many of the documents labelled with the code each rule catches, and it shows how much the rule misses.
+**Stand-in numbers (not a Gate 1 test).** Until then, every number below comes from a proxy: the 270 documents of this pack that I labelled `clean` (no disease except D3). Those 270 are one reader's labels, not two, so the test is weaker than the real one. "Detection" is how many of the documents labelled with the code each rule catches, and it shows how much the rule misses.
 
-| Code | Count in pack | Medicine | Action | Changed (of 282) | Dropped (of 282) | Detection | Result |
+| Code | Count in pack | Medicine | Action | Changed (of 270) | Dropped (of 270) | Detection | Result |
 |---|---|---|---|---|---|---|---|
 | A5 | 51 | `fix_a5` | fix | 0 | 0 | 41/51 | pass |
-| C1 | 86 | `strip_c1_tail` | fix | 0 | 0 | 31/86 | pass |
-| C2 | 34 | `dedupe` | fix | 2 (0.7%) | 0 | 29/34 | pass |
-| C3 | 51 | `c3_drop` | drop | 0 | 0 | 39/51 | pass, but circular (see C3) |
+| C1 | 92 | `strip_c1_tail` | fix | 0 | 0 | 31/92 | pass |
+| C2 | 36 | `dedupe` | fix | 2 (0.7%) | 0 | 29/36 | pass |
+| C3 | 54 | `c3_drop` | drop | 0 | 0 | 39/54 | pass, but circular (see C3) |
 | C5 | 10 | `c5_drop` | drop | 0 | 0 | 4/10 | pass |
-| D3 | 204 | none | keep | 0 | 0 | n/a | n/a |
-| D4 | 20 | none | n/a | not run | not run | n/a | no safe rule |
+| D3 | 205 | none | keep | 0 | 0 | n/a | n/a |
+| D4 | 22 | none | n/a | not run | not run | n/a | no safe rule |
 | C4 | 7 | none | n/a | not run | not run | n/a | no safe rule |
 
 ## Medicine 1: A5, characters in the wrong order
@@ -39,12 +39,12 @@ Counts are from all 500 rows of `labels.csv`. A disease gets a section if it app
        return t
    ```
 3. **Action:** Fix the text.
-4. **Harm test:** Gold set empty, not testable. Stand-in result: on the 282 proxy documents it changes 0 and drops 0. It catches 41 of the 51 documents I labelled A5. The test also found 6 documents that I had labelled `clean` or without A5 and that have this disease, so I added A5 to those 6 rows.
+4. **Harm test:** Gold set empty, not testable. Stand-in result: on the 270 proxy documents it changes 0 and drops 0. It catches 41 of the 51 documents I labelled A5. The test also found 6 documents that I had labelled `clean` or without A5 and that have this disease, so I added A5 to those 6 rows.
 5. **Side effects:** It does not fix OCR documents where the wrong letter is a different letter (`चौद्ध` for बौद्ध). It cannot repair a word whose correct form it cannot guess, such as `तिौर`. Rare valid Sanskrit sequences with a doubled mark could be changed.
 
 ## Medicine 2: C1, boilerplate
 
-1. **Disease:** C1, 86 documents. Examples:
+1. **Disease:** C1, 92 documents. Examples:
    - `2aaaf93521570ffb`: `This website follows the DNPA Code of Ethics.`
    - `fa11b3c97771aec9`: `Posted On:`
    - `f3db6adfc419ed5b`: `अगर आपको हमारा आर्टिकल पसंद आया हो तो इसे दूसरों के साथ शेयर करें।`
@@ -59,12 +59,12 @@ Counts are from all 500 rows of `labels.csv`. A disease gets a section if it app
        return '\n'.join(lines)
    ```
 3. **Action:** Fix the text (delete the trailing lines). Drop the document if nothing remains.
-4. **Harm test:** Gold set empty, not testable. Stand-in result: it changes 0 and drops 0 of the 282 proxy documents. It catches only 31 of the 86 documents I labelled C1. The rest are footers with no fixed phrase (`हिमाचल दस्तक`, `(जागरण फोटो)`), or lines at the start or middle of the document (`Quick links:`, `Posted On:`, `इसे भी पढ़ें` inside the text).
+4. **Harm test:** Gold set empty, not testable. Stand-in result: it changes 0 and drops 0 of the 270 proxy documents. It catches only 31 of the 92 documents I labelled C1. The rest are footers with no fixed phrase (`हिमाचल दस्तक`, `(जागरण फोटो)`), or lines at the start or middle of the document (`Quick links:`, `Posted On:`, `इसे भी पढ़ें` inside the text).
 5. **Side effects:** It leaves C1 lines that are not at the end. A real last line that starts with `यह भी पढ़` would be removed. The list needs one new phrase for each site, so it will miss new templates. The same footer phrases (`This website follows the DNPA Code of Ethics.`, `Get all … News in Hindi`) are common in news packs, so I expect the rule to also work on other Hindi news packs such as ind-hi-sangraha-s, but I have not tested that.
 
 ## Medicine 3: C2, repeated text
 
-1. **Disease:** C2, 34 documents. Examples:
+1. **Disease:** C2, 36 documents. Examples:
    - `f878e0d844663bac`: `पांच राज्यों के चुनाव में सबसे बड़ा दांव भारतीय जनता पार्टी का है।` (appears once in the summary bullets and again in the body).
    - `24726107e3227aa8`: `प्रधानमंत्री मोदी गांधीनगर के महात्मा मंदिर में तीन दिवसीय वैश्विक आयुष निवेश और नवाचार शिखर सम्मेलन 2022 के उद्घाटन के अवसर पर बोल रहे थे।` (appears twice).
    - `34a0aa26b4625db4`: `शुक्रवार को शिवसेना नेता आदित्य ठाकरे ने राहुल गांधी के साथ पदयात्रा की है।` (opening and closing).
@@ -85,12 +85,12 @@ Counts are from all 500 rows of `labels.csv`. A disease gets a section if it app
        return '\n'.join(out)
    ```
 3. **Action:** Fix the text.
-4. **Harm test:** Gold set empty, not testable. Stand-in result: it changes 2 of the 282 proxy documents (0.7%, below the 1% limit) and drops none. It catches 29 of the 34 documents I labelled C2.
+4. **Harm test:** Gold set empty, not testable. Stand-in result: it changes 2 of the 270 proxy documents (0.7%, below the 1% limit) and drops none. It catches 29 of the 36 documents I labelled C2.
 5. **Side effects:** A speech or a poem that repeats a long line on purpose would lose the repeat. The 2 changed clean documents are both news items that quote a sentence twice, and the removal there is harmless.
 
 ## Medicine 4: C3, truncated document
 
-1. **Disease:** C3, 51 documents. Examples:
+1. **Disease:** C3, 54 documents. Examples:
    - `3d66ca6d56ff7d0f`: ends with `साथ ही देवताओं,`
    - `af6c50a82a970dfd`: ends with `मुस्कराते हुए हमारी बातें सुनता,`
    - `e45f2a8e8d549f21`: ends with `…सीन अंग माने गए हैं। या`
@@ -100,7 +100,7 @@ Counts are from all 500 rows of `labels.csv`. A disease gets a section if it app
        return t.rstrip()[-1:] not in '।.?!"\'”’)॥'
    ```
 3. **Action:** Drop the document. Dropping is crude: a better action is to cut the last unfinished sentence.
-4. **Harm test:** Gold set empty, not testable. Stand-in result: it drops 0 of the 282 proxy documents. This result is circular, because I labelled a document C3 exactly when it ended without punctuation, so the clean set cannot contain such a document. It catches 39 of the 51 C3 documents. The other 12 are cut at the start or in the middle, which this rule cannot see. I could not honestly claim it passes until it is run on the gold set.
+4. **Harm test:** Gold set empty, not testable. Stand-in result: it drops 0 of the 270 proxy documents. This result is circular, because I labelled a document C3 exactly when it ended without punctuation, so the clean set cannot contain such a document. It catches 39 of the 54 C3 documents. The other 15 are cut at the start or in the middle, which this rule cannot see. I could not honestly claim it passes until it is run on the gold set.
 5. **Side effects:** It would drop a good document that ends in a list, a table or a name with no final punctuation (headline lists, poem lines). It does not catch a document truncated at the start (`- कि पुलिस और प्रशासन की ओर से…`).
 
 ## Medicine 5: C5, lists of keywords or headlines
@@ -117,12 +117,12 @@ Counts are from all 500 rows of `labels.csv`. A disease gets a section if it app
        return len(ls) >= 6 and sum(1 for l in ls if len(l) < 70 and not re.search('[।.?!]$', l.strip())) >= len(ls) * 0.7
    ```
 3. **Action:** Drop the document.
-4. **Harm test:** Gold set empty, not testable. Stand-in result: it drops 0 of the 282 proxy documents and changes none. It catches only 4 of the 10 C5 documents, so most headline lists are missed.
+4. **Harm test:** Gold set empty, not testable. Stand-in result: it drops 0 of the 270 proxy documents and changes none. It catches only 4 of the 10 C5 documents, so most headline lists are missed.
 5. **Side effects:** A poem, a lyric or a bullet-point exam page can look like a list and would be dropped. This is a weak rule and should be checked on the gold set first.
 
 ## Medicine 6: D3, Hindi and English mixed
 
-1. **Disease:** D3, 204 documents. Examples:
+1. **Disease:** D3, 205 documents. Examples:
    - `73edc87d0fe145a4`: `NASA`
    - `6b35ae7096dd14fa`: `Ameesha Patel`
    - `8d83e0f13cb77da5`: `Gurugram News:`
@@ -133,7 +133,7 @@ Counts are from all 500 rows of `labels.csv`. A disease gets a section if it app
 
 ## Medicine 7: D4, bad machine translation
 
-1. **Disease:** D4, 20 documents. Examples:
+1. **Disease:** D4, 22 documents. Examples:
    - `5d00471edd7df08e`: `तेजतर्रार, गतिशील और निश्चित रूप से आकर्षक`
    - `2f02b8b9feec6642`: `एचिलीस कंधे` (Achilles tendon translated as "Achilles shoulder").
    - `c5727742e49ca11f`: `ट्रेन और बस कोलाइड`
