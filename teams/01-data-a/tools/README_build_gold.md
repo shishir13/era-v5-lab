@@ -88,12 +88,19 @@ not an arbitrary cutoff. A shortfall is reported rather than hidden.
    PR version supersedes the merged/local version for that handle. Two PRs
    from one person **do not** make two readers.
 2. Parse `doc_id,read,verdict,diseases,evidence,hex,note` using CSV rules.
-3. A positive vote requires `read=full`, `verdict=clean`, and an empty
-   `diseases` cell. `partial,clean` does not count.
+3. A positive vote requires `read=full`, `verdict=clean`, and no disease
+   codes **other than D3**. TSAI clarification: **D3 (natural mixed language)
+   is label-only**. A full-read `clean` row with an empty diseases cell or
+   only D3 counts as a clean vote. A row with `verdict=fix` and only D3
+   **does not count as clean yet** and remains a dispute/veto; we will decide
+   that case separately. `partial` does not count. A `drop` verdict or any
+   other disease (including `D3;C1`) cannot count as clean.
+   Source CSV labels and verdicts are not modified.
 4. Require **two distinct positive reviewers for the SAME doc_id in the SAME pack**.
 5. Conservatively exclude candidates on which *any* additional reviewer
-   explicitly said `fix` or `drop`. Use `--allow-disputed` only if the team
-   confirms strict "2 clean votes regardless of dissent" semantics.
+   explicitly said `fix` or `drop`, including `fix,D3` for now. Use
+   `--allow-disputed` only if the team confirms strict
+   "2 clean votes regardless of dissent" semantics.
 6. Conflicting duplicate rows for a doc ID from one reviewer disqualify that
    reviewer's clean vote **and mark the document disputed**. This prevents a
    `fix`/`drop` from vanishing when other reviewers provide two clean votes.

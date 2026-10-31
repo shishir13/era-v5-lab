@@ -62,14 +62,23 @@ class Vote:
         return self.read == "full" and not self.conflicted_duplicate
 
     @property
+    def disease_codes(self) -> Set[str]:
+        # D3 (natural mixed language) is a label only; preserve the source verdict.
+        return {code.strip().upper() for code in self.diseases.split(";") if code.strip()}
+
+    @property
     def clean(self) -> bool:
+        # D3-only CLEAN counts as a gold vote, but D3-only FIX does not.
         return (not self.conflicted_duplicate and self.read == "full"
-                and self.verdict == "clean" and not self.diseases)
+                and self.verdict == "clean"
+                and not (self.disease_codes - {"D3"}))
 
     @property
     def negative(self) -> bool:
-        # Preserve disagreement even when duplicate rows cancel a reviewer's clean vote.
-        return self.conflicted_duplicate or self.verdict in {"fix", "drop"} or bool(self.diseases)
+        # Keep every FIX/DROP as a veto, including D3-only FIX, until reviewed.
+        # D3-only CLEAN is label-only and is not dissent; other diseases are.
+        return (self.conflicted_duplicate or self.verdict in {"fix", "drop"}
+                or bool(self.disease_codes - {"D3"}))
 
 
 class MalformedLabelsError(ValueError):
@@ -301,11 +310,11 @@ def parse_labels(submission: Submission, warnings: List[str]) -> Dict[str, Vote]
         if not doc_id or read not in {"full", "partial"} or verdict not in {"clean", "fix", "drop"}:
             warnings.append(f"{submission.source}, row {row_num}: invalid ID/read/verdict; skipping row")
             continue
-        if verdict == "clean" and diseases:
-            warnings.append(f"{submission.source}, row {row_num}: clean with disease codes; not a clean vote")
+        vote = Vote(read, verdict, diseases)
+        if verdict == "clean" and vote.disease_codes - {"D3"}:
+            warnings.append(f"{submission.source}, row {row_num}: clean with non-D3 disease codes; not a clean vote")
         if read == "partial" and verdict == "clean":
             warnings.append(f"{submission.source}, row {row_num}: partial+clean; not a clean vote")
-        vote = Vote(read, verdict, diseases)
         if doc_id in conflicted:
             continue
         if doc_id in votes and votes[doc_id] != vote:

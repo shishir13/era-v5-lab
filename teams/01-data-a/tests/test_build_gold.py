@@ -31,6 +31,78 @@ def read_csv(path):
 
 
 class BuilderTests(unittest.TestCase):
+    def test_d3_only_clean_is_gold_eligible_but_fix_is_not(self):
+        # D3 is label-only for CLEAN votes; leave all FIX verdicts excluded.
+        cases = [
+            ("full", "clean", "", True, False),
+            ("full", "clean", "D3", True, False),
+            ("full", "clean", " d3 ; D3 ", True, False),
+            ("full", "fix", "D3", False, True),
+            ("full", "fix", " D3 ; D3 ", False, True),
+            ("full", "clean", "D3;A1", False, True),
+            ("full", "fix", "A1;D3", False, True),
+            ("full", "fix", "", False, True),
+            ("full", "drop", "D3", False, True),
+            ("partial", "clean", "D3", False, False),
+            ("partial", "fix", "D3", False, True),
+        ]
+        for read, verdict, diseases, expected_clean, expected_negative in cases:
+            with self.subTest(read=read, verdict=verdict, diseases=diseases):
+                vote = bg.Vote(read, verdict, diseases)
+                self.assertEqual(vote.clean, expected_clean)
+                self.assertEqual(vote.negative, expected_negative)
+
+    def test_d3_only_clean_votes_contribute_to_gold_and_fix_blocks(self):
+        docs = [
+            sub('sci-finepdfs', 'alice',
+                'A,full,clean,D3,,,', 'B,full,clean,D3,,,',
+                'C,full,clean,,,,', 'D,full,fix,A1;D3,,,',
+                'E,full,fix,D3,,,'),
+            sub('sci-finepdfs', 'bob',
+                'A,full,clean,,,,', 'B,full,fix,D3,,,',
+                'C,full,clean,D3,,,', 'D,full,clean,,,,',
+                'E,full,clean,D3,,,'),
+            sub('sci-finepdfs', 'carol',
+                'B,full,clean,,,,', 'D,full,clean,,,,',
+                'E,full,clean,,,,'),
+        ]
+        with tempfile.TemporaryDirectory() as tmp:
+            warnings = []
+            report = bg.build_gold(docs, Path(tmp), warnings=warnings)
+            rows = read_csv(Path(tmp) / 'sci-finepdfs_gold.csv')
+            self.assertEqual([r['doc_id'] for r in rows], ['A', 'C'])
+            self.assertEqual(report[0]['docs_with_2_clean_votes'], 5)
+            self.assertEqual(report[0]['disputed_gold_candidates'], 3)  # B/D/E
+            self.assertFalse(any('clean with non-D3' in w for w in warnings))
+
+    def test_d3_fix_veto_and_duplicate_safety(self):
+        good = 'X,full,clean,,,,'
+        for third_vote, should_include in [
+            ('X,full,clean,D3,,,', True),
+            ('X,partial,clean,D3,,,', True),
+            ('X,full,fix,D3,,,', False),
+            ('X,partial,fix,D3,,,', False),
+            ('X,full,drop,D3,,,', False),
+            ('X,full,fix,D3;C1,,,', False),
+            ('X,full,clean,D3;C1,,,', False),
+        ]:
+            with self.subTest(third_vote=third_vote):
+                docs = [sub('sci-finepdfs', 'one', good),
+                        sub('sci-finepdfs', 'two', good),
+                        sub('sci-finepdfs', 'three', third_vote)]
+                with tempfile.TemporaryDirectory() as tmp:
+                    bg.build_gold(docs, Path(tmp))
+                    self.assertEqual(len(read_csv(Path(tmp) / 'sci-finepdfs_gold.csv')),
+                                     int(should_include))
+        # A conflicting duplicate from one reviewer is always disputed.
+        docs = [sub('sci-finepdfs', 'one', good, 'X,full,fix,D3,,,'),
+                sub('sci-finepdfs', 'two', good),
+                sub('sci-finepdfs', 'three', good)]
+        for allow_disputed in (False, True):
+            with tempfile.TemporaryDirectory() as tmp:
+                bg.build_gold(docs, Path(tmp), allow_disputed=allow_disputed)
+                self.assertEqual(read_csv(Path(tmp) / 'sci-finepdfs_gold.csv'), [])
+
     def test_gold_requires_two_distinct_full_clean_votes(self):
         docs = [
             sub('code-go', 'alice', '001,full,clean,,,,', '002,partial,clean,,,,',
